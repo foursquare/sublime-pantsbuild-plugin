@@ -2,6 +2,7 @@ import sublime, sublime_plugin
 
 from collections import defaultdict
 import json
+import os
 import subprocess
 
 
@@ -21,6 +22,16 @@ class PantsImportInsertCommand(sublime_plugin.TextCommand):
 
 
 class PantsImportGenCommand(sublime_plugin.TextCommand):
+
+  def find_pwd(self):
+    pwd, _ = os.path.split(os.path.abspath(self.view.file_name()))
+    while pwd:
+      print(pwd)
+      if os.path.isfile(os.path.join(pwd, 'fs')):
+        return pwd
+      pwd, _ = os.path.split(pwd)
+    # TODO(dan): Alert.
+    print("Where is your pants!?")
 
   def multi_select_callback(self, new_imports, ambiguous_new_import, ambiguous_new_imports, i):
     if i != -1:
@@ -46,7 +57,7 @@ class PantsImportGenCommand(sublime_plugin.TextCommand):
       command = ["./fs", "importgen", "--importgen-file=" + self.view.file_name()]
       for symbol in symbols:
         command.append("--importgen-symbol=" + symbol)
-      detail = json.loads(subprocess.check_output(command, cwd="/Users/dan/p/1").decode("UTF-8"))
+      detail = json.loads(subprocess.check_output(command, cwd=self.find_pwd()).decode("UTF-8"))
     else:
       detail = {}
 

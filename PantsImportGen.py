@@ -4,6 +4,7 @@ from collections import defaultdict
 import json
 import os
 import subprocess
+import tempfile
 import threading
 
 
@@ -59,6 +60,8 @@ class PantsImportGenCommand(sublime_plugin.TextCommand):
     sublime.set_timeout(lambda: sublime.active_window().show_quick_panel(next_ambiguous_new_import[1], callback), 10)
 
   def run(self, edit):
+    self.temp_file = tempfile.NamedTemporaryFile()
+
     symbols = set()
     for selector in ['entity.name.class', 'entity.other.inherited-class']:
       for i in self.view.find_by_selector(selector):
@@ -69,7 +72,8 @@ class PantsImportGenCommand(sublime_plugin.TextCommand):
         symbols.add(symbol)
 
     if len(symbols):
-      thread = PantsImportGenCall(self.find_pwd(), self.view.file_name(), symbols)
+      self.temp_file.write(bytes(self.view.substr(sublime.Region(0, self.view.size())), "UTF-8"))
+      thread = PantsImportGenCall(self.find_pwd(), self.temp_file.name, symbols)
       thread.start()
       self.handle_threads([thread], symbols)
 

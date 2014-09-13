@@ -29,9 +29,9 @@ class PantsImportGenCall(threading.Thread):
         self.file_path = file_path
         self.symbols = symbols
         threading.Thread.__init__(self)
- 
+
     def run(self):
-      command = ["./fs", "importgen", "--importgen-file=" + self.file_path]
+      command = ["./pants", "importgen", "--importgen-file=" + self.file_path]
       for symbol in self.symbols:
         command.append("--importgen-symbol=" + symbol)
       self.detail = json.loads(subprocess.check_output(command, cwd=self.pwd).decode("UTF-8"))

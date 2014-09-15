@@ -30,11 +30,27 @@ class PantsImportGenCall(threading.Thread):
         self.symbols = symbols
         threading.Thread.__init__(self)
 
+    def shorten(self, s):
+      cutpoint = s.find('\n')
+      if cutpoint != -1:
+        return s[:cutpoint] + '\n[SNIPPED]'
+      return s
+
     def run(self):
       command = ["./pants", "importgen", "--importgen-file=" + self.file_path]
       for symbol in self.symbols:
         command.append("--importgen-symbol=" + symbol)
-      self.detail = json.loads(subprocess.check_output(command, cwd=self.pwd).decode("UTF-8"))
+      print("Running command: " + str(command))
+      p = subprocess.Popen(command, cwd=self.pwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+      stdout, stderr = p.communicate()
+      if p.returncode == 0:
+        self.detail = json.loads(stdout.decode("UTF-8"))
+      else:
+        stdout_str = stdout.decode("UTF-8")
+        stderr_str = stderr.decode("UTF-8")
+        print(stdout_str)
+        print(stderr_str)
+        sublime.error_message(self.shorten(stdout_str) + '\n' + self.shorten(stderr_str))
 
 
 class PantsImportGenCommand(sublime_plugin.TextCommand):
@@ -45,8 +61,7 @@ class PantsImportGenCommand(sublime_plugin.TextCommand):
       if os.path.isfile(os.path.join(pwd, 'fs')):
         return pwd
       pwd, _ = os.path.split(pwd)
-    # TODO(dan): Alert.
-    print("Where is your pants!?")
+    sublime.error_message("Where is your pants!?")
 
   def multi_select_callback(self, new_imports, already_imported_symbols, unknown_symbols, ambiguous_new_import, ambiguous_new_imports, i):
     if i != -1:
@@ -60,11 +75,15 @@ class PantsImportGenCommand(sublime_plugin.TextCommand):
     sublime.set_timeout(lambda: sublime.active_window().show_quick_panel(next_ambiguous_new_import[1], callback), 10)
 
   def run(self, edit):
-    self.temp_file = tempfile.NamedTemporaryFile()
+    # TODO(dan): Make sure temp_file's lifecycle is correct and then kill this delete=False.
+    self.temp_file = tempfile.NamedTemporaryFile(delete=False)
 
     symbols = set()
+    declarations = self.view.find_by_selector('entity.name.class.declaration')
     for selector in ['entity.name.class', 'entity.other.inherited-class']:
       for i in self.view.find_by_selector(selector):
+        if i in declarations:
+          continue
         if self.view.substr(i.begin() - 1) == ".":
           continue
         raw_symbol = self.view.substr(i)
@@ -73,6 +92,7 @@ class PantsImportGenCommand(sublime_plugin.TextCommand):
 
     if len(symbols):
       self.temp_file.write(bytes(self.view.substr(sublime.Region(0, self.view.size())), "UTF-8"))
+      self.temp_file.flush()
       thread = PantsImportGenCall(self.find_pwd(), self.temp_file.name, symbols)
       thread.start()
       self.handle_threads([thread], symbols)
@@ -103,7 +123,8 @@ class PantsImportGenCommand(sublime_plugin.TextCommand):
       if thread.is_alive():
         next_threads.append(thread)
         continue
-      self.parse_imports_from_detail(symbols, thread.detail)
+      if hasattr(thread, 'detail'):
+        self.parse_imports_from_detail(symbols, thread.detail)
     threads = next_threads
 
     if len(threads):

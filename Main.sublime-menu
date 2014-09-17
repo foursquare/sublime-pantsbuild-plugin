@@ -1,0 +1,14 @@
+[
+{
+    "id": "goto",
+    "children": [
+        {"id": "switch_file",
+            "children" : [
+            { "caption": "-" },
+            {
+                "command" : "open_build"
+            }]
+        }
+    ]
+}
+]

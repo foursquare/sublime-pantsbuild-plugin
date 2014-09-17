@@ -1,3 +1,5 @@
+# Copyright 2014 Foursquare Labs Inc. All Rights Reserved.
+
 import os.path as P
 import sublime, sublime_plugin
 

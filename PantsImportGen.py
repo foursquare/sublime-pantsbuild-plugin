@@ -1,3 +1,5 @@
+# Copyright 2014 Foursquare Labs Inc. All Rights Reserved.
+
 import sublime, sublime_plugin
 
 from collections import defaultdict
